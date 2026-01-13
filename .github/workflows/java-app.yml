@@ -12,6 +12,7 @@ permissions:
   contents: read
 
 
+
 env:
   ARTIFACTORY_URL: ${{ secrets.ARTIFACT_URL }}
   SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
