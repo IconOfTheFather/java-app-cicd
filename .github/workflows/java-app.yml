@@ -110,7 +110,7 @@ jobs:
      - name: Read secrets from Vault
        uses: hashicorp/vault-action@v2
        with:
-         url: ${{ secrets.VAULT_URL }}
+         url: ${{secrets.VAULT_URL }}
          method: token
          token: ${{ secrets.VAULT_TOKEN }}
          exportEnv: true
