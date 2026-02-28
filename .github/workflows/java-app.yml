@@ -15,7 +15,7 @@ env:
   ARTIFACTORY_URL: ${{ secrets.ARTIFACT_URL }}
   SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  EKS_ROLE: ${{ secrets.EKS_ACCESS_ROLE }}
+  EKS_ACCESS_ROLE: ${{ secrets.EKS_ACCESS_ROLE }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
   VAULT_URL: ${{ secrets.VAULT_URL }}  
   VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}   
