@@ -11,19 +11,17 @@ permissions:
   id-token: write
   contents: read
 
-
-
 env:
   ARTIFACTORY_URL: ${{ secrets.ARTIFACT_URL }}
   SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  ECR_ROLE: ${{ secrets.ECR_ACCESS_ROLE }}
+  EKS_ROLE: ${{ secrets.EKS_ACCESS_ROLE }}
   AWS_REGION: ${{ secrets.AWS_REGION }}
   VAULT_URL: ${{ secrets.VAULT_URL }}  
   VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}   
   JFROG_REPO_NAME: utc-app
-jobs:
 
+jobs:
   sonar:
     runs-on: ubuntu-latest
     steps:
@@ -69,6 +67,7 @@ jobs:
           SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
         #run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=geo_app -Dsonar.qualitygate.wait=true
         run:  mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=utc-app -Dsonar.projectName=utc-app
+
   build:
     runs-on: ubuntu-latest
     needs: sonar
@@ -92,42 +91,82 @@ jobs:
         with:
           name: utc-app-jar
           path: target/*.jar
+
   push_to_jfrog:
-   runs-on: ubuntu-latest
-   needs: build
-   steps:
-     - name: Checkout Code
-       uses: actions/checkout@v4
-       with:
-         fetch-depth: 0
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-     - name: Download JAR file artifact
-       uses: actions/download-artifact@v4
-       with:
-         name: utc-app-jar
-         path: target/
+      - name: Download JAR file artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: utc-app-jar
+          path: target/
 
-     # Load secrets from Vault and set as env variables for rest of job
-     - name: Read secrets from Vault
-       uses: hashicorp/vault-action@v2
-       with:
-         url: ${{secrets.VAULT_URL }}
-         method: token
-         token: ${{ secrets.VAULT_TOKEN }}
-         exportEnv: true
-         secrets: |
-          secrets/creds/jfrog username | MAVEN_USERNAME_A ;
-          secrets/creds/jfrog password | MAVEN_PASSWORD_A
+      # Load secrets from Vault and set as env variables for rest of job
+      - name: Read secrets from Vault
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{secrets.VAULT_URL }}
+          method: token
+          token: ${{ secrets.VAULT_TOKEN }}
+          exportEnv: true
+          secrets: |
+            secrets/creds/jfrog username | MAVEN_USERNAME_A ;
+            secrets/creds/jfrog password | MAVEN_PASSWORD_A
 
-     - name: Push to JFrog
-       env:
-         MAVEN_USERNAME_A: ${{ env.MAVEN_USERNAME_A }}
-         MAVEN_PASSWORD_A: ${{ env.MAVEN_PASSWORD_A }}
-       run: |
-        APP_VERSION=$(grep -m2 '<version>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
-        APP_NAME=$(grep -m2 '<artifactId>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
-        APP_LONG_NAME=$APP_NAME-$APP_VERSION.jar
-        echo "Deploying $APP_LONG_NAME to Artifactory..."
-        curl -v --user $MAVEN_USERNAME_A:$MAVEN_PASSWORD_A \
-          -T target/$APP_LONG_NAME \
-          -X PUT "$ARTIFACTORY_URL/artifactory/$JFROG_REPO_NAME/$APP_LONG_NAME"
+      - name: Push to JFrog
+        env:
+          MAVEN_USERNAME_A: ${{ env.MAVEN_USERNAME_A }}
+          MAVEN_PASSWORD_A: ${{ env.MAVEN_PASSWORD_A }}
+        run: |
+          APP_VERSION=$(grep -m2 '<version>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
+          APP_NAME=$(grep -m2 '<artifactId>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
+          APP_LONG_NAME=$APP_NAME-$APP_VERSION.jar
+          echo "Deploying $APP_LONG_NAME to Artifactory..."
+          curl -v --user $MAVEN_USERNAME_A:$MAVEN_PASSWORD_A \
+            -T target/$APP_LONG_NAME \
+            -X PUT "$ARTIFACTORY_URL/artifactory/$JFROG_REPO_NAME/$APP_LONG_NAME"
+
+  deploy_to_eks:
+    runs-on: ubuntu-latest
+    needs: push_to_jfrog
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.EKS_ROLE }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name my-app-dev
+
+      - name: Get version from pom.xml
+        run: |
+          APP_VERSION=$(grep -m2 '<version>' pom.xml | tail -1 | grep -oP '(?<=>).*(?=<)')
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+
+      - name: Deploy to EKS
+        env:
+          IMAGE_NAME: "${{ env.ARTIFACTORY_URL }}/${{ env.JFROG_REPO_NAME }}/utc-app-${{ env.APP_VERSION }}.jar"
+        run: |
+          # Replace placeholder in deployment file
+          sed -i "s|\${IMAGE_NAME}|$IMAGE_NAME|g" k8s/deployment.yaml
+          
+          # Apply to cluster
+          kubectl apply -f k8s/deployment.yaml
+          
+          # Wait for rollout to complete
+          kubectl rollout status deployment/utc-app -n production --timeout=2m
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n production
+          kubectl get svc -n production
+  
