@@ -145,7 +145,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name my-app-dev
+        run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name my-app-dev 
 
       - name: Get version from pom.xml
         run: |
@@ -154,7 +154,7 @@ jobs:
 
       - name: Deploy to EKS
         env:
-          IMAGE_NAME: "${{ env.ARTIFACTORY_URL }}/${{ env.JFROG_REPO_NAME }}/utc-app-${{ env.APP_VERSION }}.jar"
+          IMAGE_NAME: "${{ env.ARTIFACTORY_URL }}/${{ env.JFROG_REPO_NAME }}/utc-app-${{env.APP_VERSION }}.jar"
         run: |
           # Replace placeholder in deployment file
           sed -i "s|\${IMAGE_NAME}|$IMAGE_NAME|g" k8s/deployment.yaml
