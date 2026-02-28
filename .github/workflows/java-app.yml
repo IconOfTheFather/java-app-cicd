@@ -154,7 +154,7 @@ jobs:
 
       - name: Deploy to EKS
         env:
-          IMAGE_NAME: "${{ env.ARTIFACTORY_URL }}/${{ env.JFROG_REPO_NAME }}/utc-app-${{env.APP_VERSION }}.jar"
+          IMAGE_NAME: "${{ env.ARTIFACTORY_URL }}/${{ env.JFROG_REPO_NAME }}/utc-app-${{ env.APP_VERSION }}.jar"
         run: |
           # Replace placeholder in deployment file
           sed -i "s|\${IMAGE_NAME}|$IMAGE_NAME|g" k8s/deployment.yaml
