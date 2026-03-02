@@ -124,7 +124,7 @@ jobs:
 
   deploy_to_eks:
     runs-on: ubuntu-latest
-    needs: build
+    needs: Push to JFrog
     steps:
       - uses: actions/checkout@v4
 
