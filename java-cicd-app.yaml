@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: utc-app
+  namespace: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: utc-app
+  template:
+    metadata:
+      labels:
+        app: utc-app
+    spec:
+      containers:
+      - name: utc-app
+        # This will be replaced by your image tag
+        image: ${IMAGE_NAME}  
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: utc-app
+  namespace: production
+spec:
+  selector:
+    app: utc-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
