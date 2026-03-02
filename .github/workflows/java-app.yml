@@ -133,7 +133,7 @@ jobs:
 
       # 👇 THIS IS THE CRITICAL STEP YOU WERE MISSING 👇
       - name: Configure AWS credentials using OIDC
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.EKS_ACCESS_ROLE }}
           aws-region: ${{ secrets.AWS_REGION }}
