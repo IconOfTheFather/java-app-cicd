@@ -153,10 +153,10 @@ jobs:
           IMAGE_NAME: "${{ env.ARTIFACTORY_URL }}/${{ env.JFROG_REPO_NAME }}/utc-app-${{ env.APP_VERSION }}.jar"
         run: |
           # Replace placeholder in deployment file
-          sed -i "s|\${IMAGE_NAME}|$IMAGE_NAME|g" k8s/deployment.yaml
+          sed -i "s|\${IMAGE_NAME}|$IMAGE_NAME|g" java-app.yaml
           
           # Apply to cluster
-          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f java-app.yaml
           
           # Wait for rollout to complete
           kubectl rollout status deployment/utc-app -n production --timeout=2m
