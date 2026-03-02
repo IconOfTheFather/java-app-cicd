@@ -124,7 +124,10 @@ jobs:
 
   deploy_to_eks:
     runs-on: ubuntu-latest
-    needs: Push to JFrog
+    needs: push_to_jfrog
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
